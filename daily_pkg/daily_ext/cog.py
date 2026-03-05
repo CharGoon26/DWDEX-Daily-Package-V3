@@ -20,6 +20,7 @@ if TYPE_CHECKING:
 log = logging.getLogger(__name__)
 
 SHINY_RATE = 0.00048828125  # 1/2048
+SHINY_SPECIAL_ID = 1
 
 
 def _pick_ball() -> Ball:
@@ -60,7 +61,7 @@ class Daily(commands.Cog):
         except DailyClaim.DoesNotExist:
             await DailyClaim.objects.acreate(player=player, last_claimed=today)
 
-        # Pick ball and determine shiny
+        # Pick ball
         try:
             ball = await sync_to_async(_pick_ball)()
         except ValueError:
@@ -69,6 +70,7 @@ class Daily(commands.Cog):
             )
             return
 
+        # Determine shiny
         is_shiny = random.random() < SHINY_RATE
         attack_bonus = random.randint(-20, 20)
         health_bonus = random.randint(-20, 20)
@@ -76,9 +78,9 @@ class Daily(commands.Cog):
         await BallInstance.objects.acreate(
             ball=ball,
             player=player,
-            shiny=is_shiny,
             attack_bonus=attack_bonus,
             health_bonus=health_bonus,
+            special_id=SHINY_SPECIAL_ID if is_shiny else None,
         )
 
         shiny_str = " ✨ **SHINY!**" if is_shiny else ""
@@ -93,8 +95,8 @@ class Daily(commands.Cog):
             color=discord.Color.purple() if is_shiny else discord.Color.gold(),
         )
 
-        # Attach card image if available
-        image_field = ball.wild_card_shiny if is_shiny and ball.wild_card_shiny else ball.wild_card
+        # Attach card image
+        image_field = ball.wild_card
         if image_field:
             try:
                 file = discord.File(
